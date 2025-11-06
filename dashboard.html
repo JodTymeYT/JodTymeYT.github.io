@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dashboard</title>
+  <style>
+    :root{
+      --bg-start:#eaf6ff;
+      --bg-end:#e0f2ff;
+      --accent:#0a63ff;
+      --muted:#6b7a96;
+      --card-bg:rgba(255,255,255,0.55);
+      --glass-blur:16px;
+      --radius:16px;
+      --shadow:0 10px 30px rgba(24,39,75,0.08);
+      --gap:1rem;
+      --max-width:1100px;
+    }
+
+    /* base */
+    html,body{margin:0;height:100%;font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; color:var(--muted); background:linear-gradient(180deg,var(--bg-start),var(--bg-end));}
+    body{display:flex;flex-direction:column;align-items:center;padding:2.2rem;box-sizing:border-box;}
+
+    /* background canvas */
+    #bg{position:fixed;inset:0;z-index:-1;border-radius:0;}
+    canvas{display:block;width:100%;height:100%;}
+
+    /* header */
+    header{width:100%;max-width:var(--max-width);display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem;background:var(--card-bg);backdrop-filter:blur(var(--glass-blur));border-radius:14px;box-shadow:var(--shadow);border:1px solid rgba(255,255,255,0.6);}
+    .pfp{width:52px;height:52px;border-radius:12px;background:#fff url('https://cdn-icons-png.flaticon.com/512/847/847969.png') center/64% no-repeat;border:2px solid rgba(255,255,255,0.8);box-shadow:0 6px 18px rgba(10,99,255,0.08);}
+    h1{font-size:1.25rem;margin:0;color:var(--accent);font-weight:700;letter-spacing:-0.2px;}
+    nav{display:flex;gap:.8rem;margin-left:auto;align-items:center;}
+    .tab{padding:.5rem .9rem;border-radius:10px;cursor:pointer;font-weight:600;transition:all .18s; color:var(--accent); background:transparent;border:1px solid transparent;}
+    .tab:hover{background:#ffffff; transform:translateY(-3px); box-shadow:0 8px 22px rgba(10,99,255,0.06);}
+
+    /* main island */
+    .island-wrapper{width:100%;display:flex;justify-content:center;margin-top:1.6rem; padding-bottom:3.5rem;}
+    .island{width:100%;max-width:var(--max-width);min-height:70vh;}
+    .island-content{padding:1.6rem;background:var(--card-bg);backdrop-filter:blur(var(--glass-blur));border-radius:18px;box-shadow:var(--shadow);color:#25304a;overflow:hidden;}
+    .island-content h2{margin:0 0 0.6rem 0;color:var(--accent);font-size:1.5rem;}
+    .lead{color:#3b4a6a;margin-bottom:1rem;line-height:1.45;}
+
+    /* metrics / grid */
+    .grid{display:grid;grid-template-columns: repeat(12,1fr);gap:var(--gap);align-items:start;}
+    .card{grid-column:span 4;background:white;border-radius:12px;padding:1rem;box-shadow:0 6px 20px rgba(20,32,66,0.04);border:1px solid rgba(9,29,66,0.03);}
+    .card.large{grid-column:span 8;}
+    .metric{display:flex;align-items:center;gap:.75rem;}
+    .metric .num{font-size:1.4rem;font-weight:800;color:var(--accent);}
+    .metric .label{font-size:.9rem;color:var(--muted);}
+
+    /* table improved */
+    .table-wrap{overflow:auto;border-radius:10px;}
+    table{width:100%;border-collapse:collapse;margin-top:.8rem;min-width:640px;}
+    th,td{padding:.8rem 1rem;border-bottom:1px solid #f1f6ff;text-align:left;font-size:.95rem;}
+    th{background:linear-gradient(180deg,#f6fbff,#ffffff);color:var(--accent);font-weight:700;position:sticky;top:0;}
+    tr:hover td{background:linear-gradient(90deg,#ffffff,#fbfdff);}
+
+    /* placeholder section */
+    .placeholder-section{margin-top:1.15rem;padding:1rem;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.9),rgba(255,255,255,0.85));border:1px solid rgba(220,232,255,0.6);}
+
+    /* chat */
+    .chatbox{background:white;border-radius:12px;border:1px solid rgba(0,0,0,0.06);max-width:720px;height:360px;display:flex;flex-direction:column;overflow:hidden;margin-top:.6rem;}
+    .messages{flex:1;padding:0.9rem;overflow-y:auto;display:flex;flex-direction:column;gap:0.5rem;background:linear-gradient(180deg,#ffffff00,#ffffffaa);}
+    .msg{max-width:78%;padding:0.6rem 0.85rem;border-radius:10px;font-size:0.95rem;line-height:1.25;box-shadow:0 6px 14px rgba(20,32,66,0.04);}
+    .msg.user{align-self:flex-end;background:linear-gradient(180deg,#0069ff,#0058e6);color:white;border-bottom-right-radius:6px;}
+    .msg.bot{align-self:flex-start;background:#f6fbff;color:#133a7a;border-bottom-left-radius:6px;}
+    .chat-controls{display:flex;gap:0.6rem;padding:0.65rem;border-top:1px solid #eef6ff;background:rgba(250,250,255,0.7);}
+    .chat-controls input{flex:1;padding:0.6rem;border-radius:10px;border:1px solid #e6f0ff;background:white;}
+    .chat-controls button{padding:0.6rem 0.9rem;border-radius:10px;border:0;background:var(--accent);color:white;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(10,99,255,0.12);}
+
+    /* settings fab */
+    .settings-wrap{position:fixed;right:22px;bottom:22px;z-index:999;}
+    .settings-btn{width:58px;height:58px;border-radius:14px;background:linear-gradient(180deg,var(--accent),#004ed1);color:white;border:0;box-shadow:0 12px 30px rgba(10,99,255,0.16);cursor:pointer;}
+    .settings-panel{position:absolute;right:70px;bottom:0;height:320px;width:0;background:white;border-radius:14px;box-shadow:0 8px 24px rgba(10,30,80,0.08);overflow:hidden;display:flex;flex-direction:column;gap:1rem;padding:1rem;opacity:0;transition:.28s;pointer-events:none;}
+    .settings-panel.open{width:220px;opacity:1;pointer-events:auto;}
+
+    /* responsive */
+    @media (max-width:900px){
+      .grid{grid-template-columns: repeat(6,1fr);}
+      .card{grid-column:span 6;}
+      .card.large{grid-column:span 6;}
+      header{padding:0.75rem;}
+    }
+    @media (max-width:520px){
+      body{padding:1rem;}
+      header{flex-direction:row;gap:.6rem;}
+      nav{display:none;}
+      .island{width:100%;}
+      .messages{padding:0.6rem;}
+      .chatbox{height:300px;}
+    }
+  </style>
+</head>
+<body>
+<div id="bg"><canvas id="liquid"></canvas></div>
+
+<header>
+  <div class="pfp" aria-hidden="true"></div>
+  <h1 id="greet">Welcome</h1>
+  <nav aria-label="Primary">
+    <div class="tab" role="button">Overview</div>
+    <div class="tab" role="button">Projects</div>
+    <div class="tab" role="button">Messages</div>
+    <div class="tab" role="button">Analytics</div>
+  </nav>
+</header>
+
+<div class="island-wrapper">
+  <div class="island">
+    <div class="island-content">
+      <h2>Dashboard</h2>
+      <p class="lead">A calm, focused workspace quick stats, recent activity and a personal assistant for small reminders.</p>
+
+      <!-- metrics grid -->
+      <div class="grid" style="margin-top:1rem;">
+        <div class="card">
+          <div class="metric">
+            <div>
+              <div class="num">1,248</div>
+              <div class="label">Active Users</div>
+            </div>
+            <div style="margin-left:auto;font-size:.85rem;color:#2f4a85;">+4.3%</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="metric">
+            <div>
+              <div class="num">93</div>
+              <div class="label">Open Projects</div>
+            </div>
+            <div style="margin-left:auto;font-size:.85rem;color:#2f4a85;">Stable</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="metric">
+            <div>
+              <div class="num">12</div>
+              <div class="label">New Messages</div>
+            </div>
+            <div style="margin-left:auto;font-size:.85rem;color:#2f4a85;">Urgent</div>
+          </div>
+        </div>
+
+        <div class="card large" style="display:flex;flex-direction:column;gap:.6rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <strong style="color:#123a77;font-size:1rem;">Activity</strong>
+            <small style="color:var(--muted)">Updated just now</small>
+          </div>
+          <div class="table-wrap">
+            <table aria-label="Recent tasks">
+              <thead>
+                <tr><th>Task</th><th>Status</th><th>Owner</th><th>Updated</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Front-end build</td><td>In Progress</td><td>Jade</td><td>Today</td></tr>
+                <tr><td>Backend sync</td><td>Pending</td><td>Jude</td><td>Yesterday</td></tr>
+                <tr><td>Design review</td><td>Completed</td><td>Lian</td><td>2 days ago</td></tr>
+                <tr><td>Bug testing</td><td>Completed</td><td>Maky</td><td>4 days ago</td></tr>
+                <tr><td>Developer test</td><td>Completed</td><td>Audrey</td><td>1 week ago</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- chat & quick links -->
+      <div style="display:grid;grid-template-columns:1fr 360px;gap:1rem;margin-top:1.15rem;">
+        <div class="placeholder-section">
+          <h3 style="margin:0 0 .5rem 0;color:var(--accent)">Quick Links</h3>
+          <ul style="margin:0;padding-left:1.15rem;color:#274064;">
+            <li><a href="#" style="color:var(--accent)">Your Portfolio</a></li>
+            <li><a href="#" style="color:var(--accent)">Messages Center</a></li>
+            <li><a href="#" style="color:var(--accent)">Usage Stats</a></li>
+          </ul>
+          <input type="text" placeholder="Search..." style="width:100%;margin-top:1rem;padding:.6rem .9rem;border-radius:10px;border:1px solid #d0e2ff;box-shadow:inset 0 2px 6px rgba(0,0,0,0.03);font-size:.95rem;" />
+          <input type="checkbox" id="notifyChk" style="margin-top:1rem;" />
+          <label for="notifyChk" style="font-size:. nine rem; color:#274064; margin-left:.4rem;">Enable Notifications</label>
+        </div>
+
+        <div>
+          <h3 style="margin:0 0 .6rem 0;color:var(--accent)">Personal Assistant</h3>
+          <div class="chatbox" id="chatBox" aria-live="polite">
+            <div class="messages" id="messages"></div>
+            <div class="chat-controls">
+              <input id="chatInput" type="text" placeholder="Ask your personal assistant..." aria-label="Chat input" />
+              <button id="sendBtn" type="button" aria-label="Send">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="settings-wrap">
+  <button class="settings-btn" id="settingsToggle" aria-label="Open settings">⚙️</button>
+  <div class="settings-panel" id="settingsPanel" aria-hidden="true">
+    <div class="setting-item"><div class="setting-icon" style="background-image:url('https://cdn-icons-png.flaticon.com/512/3064/3064197.png')"></div><span class="setting-label">Personal</span></div>
+    <div class="setting-item"><div class="setting-icon" style="background-image:url('https://cdn-icons-png.flaticon.com/512/3064/3064196.png')"></div><span class="setting-label">Security</span></div>
+    <div class="setting-item"><div class="setting-icon" style="background-image:url('https://cdn-icons-png.flaticon.com/512/3524/3524659.png')"></div><span class="setting-label">Preferences</span></div>
+    <div class="setting-item"><div class="setting-icon" style="background-image:url('https://cdn-icons-png.flaticon.com/512/1828/1828490.png')"></div><span class="setting-label">Logout</span></div>
+  </div>
+</div>
+
+<script>
+  // greeting
+  const params = new URLSearchParams(location.search);
+  document.getElementById('greet').textContent = `Welcome, ${decodeURIComponent(params.get('user')||'Guest')}`;
+
+  // settings toggle
+  const settingsToggle = document.getElementById('settingsToggle');
+  const settingsPanel = document.getElementById('settingsPanel');
+  settingsToggle.onclick = () => {
+    settingsPanel.classList.toggle('open');
+    settingsPanel.setAttribute('aria-hidden', !settingsPanel.classList.contains('open'));
+  };
+
+  // improved liquid background (keeps your existing implementation but tuned)
+  const canvas = document.getElementById('liquid'), ctx = canvas.getContext('2d');
+  let dpr = window.devicePixelRatio || 1, w, h;
+  const mouse = { x: innerWidth/2, y: innerHeight/2 };
+
+  function resize(){
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(window.innerWidth * dpr);
+    canvas.height = Math.floor(window.innerHeight * dpr);
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    w = window.innerWidth;
+    h = window.innerHeight;
+  }
+  addEventListener('resize', resize);
+  resize();
+  addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+  const colors = ['#bfe9ff33','#9fd6ff33','#76baff33','#eaf7ff44'];
+  const blobs = [];
+  const BLOB_COUNT = 6;
+  for (let i = 0; i < BLOB_COUNT; i++) {
+    blobs.push({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: (Math.random() - 0.5) * 0.3,
+      r: 120 + Math.random() * 200,
+      color: colors[i % colors.length],
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.0007 + Math.random() * 0.0012
+    });
+  }
+
+  let last = performance.now();
+  function draw(){
+    const now = performance.now();
+    const dt = now - last || 16;
+    last = now;
+
+    ctx.clearRect(0, 0, w, h);
+    const base = ctx.createLinearGradient(0,0,0,h);
+    base.addColorStop(0, '#e8f6ff');
+    base.addColorStop(1, '#dff3ff');
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = base;
+    ctx.fillRect(0,0,w,h);
+    ctx.globalCompositeOperation = 'lighter';
+
+    for (const b of blobs){
+      b.vx += Math.cos(b.phase + now * b.speed) * 0.02 + (mouse.x - b.x) * 0.00002;
+      b.vy += Math.sin(b.phase + now * b.speed) * 0.02 + (mouse.y - b.y) * 0.00002;
+      b.vx *= 0.98; b.vy *= 0.98;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      if (b.x < -b.r) b.x = w + b.r;
+      if (b.x > w + b.r) b.x = -b.r;
+      if (b.y < -b.r) b.y = h + b.r;
+      if (b.y > h + b.r) b.y = -b.r;
+
+      const g = ctx.createRadialGradient(b.x, b.y, b.r * 0.06, b.x, b.y, b.r);
+      g.addColorStop(0, b.color.replace(/33|44$/,'ff'));
+      g.addColorStop(0.45, b.color.replace(/33|44$/,'cc'));
+      g.addColorStop(1, b.color.replace(/33|44$/,'00'));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+</script>
+
+<!-- Chat: API-backed chatbot (requires server proxy). Falls back to safe local demo on error. -->
+<script>
+/**********************
+ GEMINI CLIENT-SIDE CHAT
+ (For school demo — DO NOT use in production)
+**********************/
+
+// Elements
+const sendBtn = document.getElementById("sendBtn");
+const chatInput = document.getElementById("chatInput");
+const messages = document.getElementById("messages");
+
+// Call Gemini API
+async function sendToGemini(prompt) {
+  const apiKey = "AIzaSyDwFdnHk1pbmmXbrauXWk2lQeNxjOqsW94"; // <-- paste key here
+  const model = "gemini-2.0-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const body = {
+    contents: [{ parts: [{ text: prompt }] }]
+  };
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  const json = await res.json();
+
+  // Try to extract reply text safely
+  const text =
+    json?.candidates?.[0]?.content?.parts?.[0]?.text ||
+    json?.candidates?.[0]?.content?.[0]?.text ||
+    json?.text ||
+    "[No response / API Error]";
+
+  return text;
+}
+
+// Add chat bubbles
+function addMsg(text, from = "user") {
+  const div = document.createElement("div");
+  div.textContent = text;
+  div.style.padding = ".6rem .9rem";
+  div.style.borderRadius = "10px";
+  div.style.maxWidth = "80%";
+  div.style.whiteSpace = "pre-wrap";
+  div.style.fontSize = ".95rem";
+  div.style.lineHeight = "1.35";
+  div.style.marginBottom = ".45rem";
+  div.style.boxShadow = "0 4px 10px rgba(0,0,0,0.05)";
+
+  if (from === "user") {
+    div.style.background = "#d9e9ff";
+    div.style.alignSelf = "flex-end";
+  } else {
+    div.style.background = "#ffffffdd";
+    div.style.alignSelf = "flex-start";
+  }
+
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+// Send handler + fake streaming typing
+async function handleSend() {
+  const text = chatInput.value.trim();
+  if (!text) return;
+
+  addMsg(text, "user");
+  chatInput.value = "";
+
+  // "typing..." placeholder
+  const loader = document.createElement("div");
+  loader.textContent = "Thinking...";
+  loader.style.opacity = ".7";
+  loader.style.fontStyle = "italic";
+  loader.style.alignSelf = "flex-start";
+  messages.appendChild(loader);
+  messages.scrollTop = messages.scrollHeight;
+
+  const reply = await sendToGemini(text);
+  messages.removeChild(loader);
+
+  // Streaming typing effect
+  let out = "";
+  const bubble = document.createElement("div");
+  bubble.style.background = "#ffffffdd";
+  bubble.style.borderRadius = "10px";
+  bubble.style.padding = ".6rem .9rem";
+  bubble.style.maxWidth = "80%";
+  bubble.style.fontSize = ".95rem";
+  bubble.style.lineHeight = "1.35";
+  bubble.style.alignSelf = "flex-start";
+  bubble.style.whiteSpace = "pre-wrap";
+  bubble.style.marginBottom = ".45rem";
+  messages.appendChild(bubble);
+
+  for (let ch of reply) {
+    out += ch;
+    bubble.textContent = out;
+    messages.scrollTop = messages.scrollHeight;
+    await new Promise(r => setTimeout(r, 10)); // typing speed
+  }
+}
+
+// Button & Enter key
+sendBtn.onclick = handleSend;
+chatInput.addEventListener("keypress", e => {
+  if (e.key === "Enter") handleSend();
+});
+</script>
+</body>
+</html>
